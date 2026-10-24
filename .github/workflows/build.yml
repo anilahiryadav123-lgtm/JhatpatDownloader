@@ -1,14 +1,15 @@
+name: Build Jhatpat Downloader APK
 
-      - name: APK ka naam set karo
-        shell: bash
-        run: |
-          mkdir -p out
-          find app/build/outputs/apk -type f -name '*.apk' -print
-          APK_PATH="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
-          if [ -z "$APK_PATH" ]; then
-            echo "ERROR: Release APK nahi mila"
-            exit 1
-          fi
-          cp "$APK_PATH" out/JhatpatDownloader.apk
-          ls -lh out/
-          
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
