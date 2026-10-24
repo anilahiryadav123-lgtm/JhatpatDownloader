@@ -1,3 +1,4 @@
+
 name: Build Jhatpat Downloader APK
 
 on:
@@ -10,6 +11,85 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP if needed
+        shell: bash
+        run: |
+          mkdir -p _src out
+          shopt -s nullglob
+          for z in *.zip; do
+            unzip -oq "$z" -d _src
+          done
+
+          PROJECT_FILE="$(find . -type f -name settings.gradle.kts \
+            -not -path './.git/*' \
+            -not -path './.gradle/*' \
+            -print -quit)"
+
+          if [ -z "$PROJECT_FILE" ]; then
+            PROJECT_FILE="$(find _src -type f -name settings.gradle.kts \
+              -print -quit)"
+          fi
+
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "ERROR: Android project/settings.gradle.kts nahi mila"
+            find . -maxdepth 4 -type f | head -200
+            exit 1
+          fi
+
+          PROJECT_DIR="$(dirname "$PROJECT_FILE")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Project found: $PROJECT_DIR"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build release APK
+        shell: bash
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Collect APK files
+        shell: bash
+        run: |
+          mkdir -p out
+          find "$PROJECT_DIR/app/build/outputs/apk/release" \
+            -type f -name '*.apk' -exec cp {} out/ \;
+
+          if ! find out -maxdepth 1 -type f -name '*.apk' | grep -q .; then
+            echo "ERROR: Koi release APK nahi bana"
+            find "$PROJECT_DIR/app/build/outputs" -type f
+            exit 1
+          fi
+
+          ls -lh out/
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JhatpatDownloader-APK
+          path: out/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Jhatpat Downloader Build ${{ github.run_number }}
+          files: out/*.apk
+          generate_release_notes: true
+          
