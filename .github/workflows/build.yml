@@ -1,56 +1,14 @@
-name: Build Jhatpat Downloader APK
-
-on:
-  push:
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Zip file ho to kholo
-        run: |
-          if [ ! -f settings.gradle.kts ]; then
-            Z=$(ls *.zip | head -n 1)
-            echo "Unzipping $Z"
-            unzip -o -q "$Z" -d _src
-            if [ -d _src/JhatpatDownloader ]; then cp -r _src/JhatpatDownloader/. . ; else cp -r _src/. . ; fi
-          fi
-          ls -la
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
-      - name: APK banao
-        run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: APK ka naam set karo
+        shell: bash
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk out/JhatpatDownloader-arm64.apk
-          cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk out/JhatpatDownloader-old-phones.apk
-          ls -la out
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: JhatpatDownloader-APK
-          path: out/*.apk
-
-      - name: Release me APK daalo (phone se seedha download)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Jhatpat Downloader v1.0.${{ github.run_number }}
-          body: "arm64 = naye phone (2017 ke baad). old-phones = purane 32-bit phone."
-          files: out/*.apk
+          find app/build/outputs/apk -type f -name '*.apk' -print
+          APK_PATH="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: Release APK nahi mila"
+            exit 1
+          fi
+          cp "$APK_PATH" out/JhatpatDownloader.apk
+          ls -lh out/
+          
